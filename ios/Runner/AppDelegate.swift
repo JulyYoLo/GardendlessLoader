@@ -189,6 +189,7 @@ import WebKit
   /// launcher view's points. The launcher keeps a top-corner camera such as
   /// the iPhone Duo outer screen's clear of its navigation rail.
   private func currentReservedRegions() -> [[String: Double]] {
+    #if GARDENLESS_SDK27_REGIONS
     guard #available(iOS 27.1, *), let view = launcherView else { return [] }
     return view.reservedRegions(kind: .occlusion).filter(\.isActive).map { region in
       [
@@ -198,6 +199,9 @@ import WebKit
         "height": Double(region.frame.height),
       ]
     }
+    #else
+    return []
+    #endif
   }
 
   /// "left" or "right" for the edge holding the sensor housing in

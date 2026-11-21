@@ -17,8 +17,10 @@ class GameWebViewClient(
     documentStartScript: String,
     private val onRendererGone: (Boolean) -> Unit,
 ) : WebViewClient() {
+    private val onlineApiEnabled = session.hasGpNext && session.gpNextCompatible
     private val resolver = GameResourceResolver(
         java.io.File(session.resourceRoot), documentStartScript, session.allowedRemoteHosts,
+        onlineApiEnabled = onlineApiEnabled,
     )
     private val origin = Uri.parse(session.origin)
     private val allowedRemoteHosts = session.allowedRemoteHosts
@@ -81,6 +83,11 @@ class GameWebViewClient(
             )
         }
         if (url.scheme == "https" && isAllowedRemoteHost(url.host)) {
+            return null
+        }
+        if (onlineApiEnabled && !request.isForMainFrame &&
+            url.scheme == "https" && url.encodedAuthority.equals("pvz.pixelbase.ltd:8800", ignoreCase = true) &&
+            (url.path.orEmpty().startsWith("/api/") || url.path.orEmpty().startsWith("/auth/"))) {
             return null
         }
         AppLogStore.emit(

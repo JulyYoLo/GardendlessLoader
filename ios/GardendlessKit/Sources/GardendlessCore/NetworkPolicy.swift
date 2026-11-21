@@ -4,7 +4,7 @@ import WebKit
 /// Default-deny network rules: every HTTP(S) request is blocked unless its
 /// host (or a subdomain) is explicitly allowlisted.
 public enum NetworkPolicy {
-  public static func encodedRules(for hosts: Set<String>) throws -> String {
+  public static func encodedRules(for hosts: Set<String>, onlineAPI: Bool = false) throws -> String {
     var rules: [[String: Any]] = [
       [
         "trigger": ["url-filter": "^http://"],
@@ -27,6 +27,18 @@ public enum NetworkPolicy {
         "action": ["type": "ignore-previous-rules"],
       ])
     }
+    if onlineAPI {
+      for prefix in ["api", "auth"] {
+        rules.append([
+          "trigger": [
+            "url-filter": "^https://pvz\\.pixelbase\\.ltd:8800/\(prefix)/",
+            "url-filter-is-case-sensitive": true,
+            "resource-type": ["raw"],
+          ],
+          "action": ["type": "ignore-previous-rules"],
+        ])
+      }
+    }
     let data = try JSONSerialization.data(withJSONObject: rules)
     guard let encoded = String(data: data, encoding: .utf8) else {
       throw GameError.failed(.invalidSession, "Unable to encode native network policy")
@@ -40,7 +52,8 @@ public enum NetworkPolicy {
     completion: @escaping (Result<WKContentRuleList, Error>) -> Void
   ) {
     let hosts = session.allowedRemoteHosts.sorted()
-    let identifier = "gardendless-network-v3-"
+    let onlineAPI = session.hasGpNext && session.gpNextCompatible
+    let identifier = (onlineAPI ? "gardenless-online-v1-" : "gardendless-network-v3-")
       + (hosts.isEmpty ? "offline" : hosts.joined(separator: "-"))
     store.lookUpContentRuleList(forIdentifier: identifier) { existing, _ in
       if let existing {
@@ -48,7 +61,7 @@ public enum NetworkPolicy {
         return
       }
       do {
-        let encoded = try encodedRules(for: session.allowedRemoteHosts)
+        let encoded = try encodedRules(for: session.allowedRemoteHosts, onlineAPI: onlineAPI)
         store.compileContentRuleList(
           forIdentifier: identifier,
           encodedContentRuleList: encoded

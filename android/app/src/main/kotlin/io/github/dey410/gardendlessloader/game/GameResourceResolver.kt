@@ -24,6 +24,7 @@ class GameResourceResolver(
     root: File,
     documentStartScript: String,
     allowedRemoteHosts: Set<String> = emptySet(),
+    onlineApiEnabled: Boolean = false,
 ) {
     private val canonicalRoot = root.absoluteFile.also {
         require(!it.isSymbolicLink()) { "Resource root must not be a symbolic link" }
@@ -47,9 +48,12 @@ class GameResourceResolver(
             listOf("https://$host:*", "https://*.$host:*")
         }
         val sources = (listOf("'self'", "data:", "blob:") + remoteSources).joinToString(" ")
+        val connectSources = if (onlineApiEnabled) {
+            "$sources https://pvz.pixelbase.ltd:8800/api/ https://pvz.pixelbase.ltd:8800/auth/"
+        } else sources
         // Cocos and GP-Next need inline scripts, dynamic compilation and local blobs.
         "default-src $sources 'unsafe-inline' 'unsafe-eval'; " +
-            "connect-src $sources; form-action $sources"
+            "connect-src $connectSources; form-action $sources"
     }
 
     fun resolve(
